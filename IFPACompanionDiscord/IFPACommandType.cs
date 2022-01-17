@@ -10,7 +10,7 @@ namespace IFPACompanionDiscord
     {
         Rank,
         Nacs,
-
+        Player,
         Help
     }
 }

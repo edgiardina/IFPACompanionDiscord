@@ -3,6 +3,7 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using PinballApi;
+using PinballApi.Models.WPPR.v2.Players;
 using System.Globalization;
 
 namespace IFPACompanionDiscord
@@ -113,20 +114,69 @@ namespace IFPACompanionDiscord
                     }
                 }
 
-                var nacsRankings = await IFPAApi.GetNacsStandings(year);
-
-                var table = new ConsoleTable("Location", "Current Leader", "# Players", "Prize $");
-                foreach (var ranking in nacsRankings)
+                if (commandcomponents.Length >= 4)
                 {
-                    table.AddRow(ranking.StateProvinceName,
-                                 ranking.CurrentLeader.FirstName + " " + ranking.CurrentLeader.LastName,
-                                 ranking.UniquePlayerCount,
-                                 ranking.PrizeValue.ToString("c"));
+                    var stateProv = commandcomponents[3];
+                    var nacsStateProvRankings = await IFPAApi.GetNacsStateProvinceStandings(stateProv, year);
+
+                    var table = new ConsoleTable("Rank", "Player", "Points", "# Events");
+                    if (nacsStateProvRankings.PlayerStandings != null)
+                    {
+                        foreach (var ranking in nacsStateProvRankings.PlayerStandings)
+                        {
+                            table.AddRow(ranking.Position, ranking.FirstName + " " + ranking.LastName, ranking.WpprPoints, ranking.EventCount);
+                        }
+                        var responseTable = table.ToMinimalString();
+                        responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+                        await message.RespondAsync($"NACS IFPA standings for {year} in {stateProv}\n```{responseTable}```");
+                    }
+                    else
+                    {
+                        await message.RespondAsync($"State/Province {stateProv} returned no results");
+                    }
+                }
+                else 
+                {
+
+                    var nacsRankings = await IFPAApi.GetNacsStandings(year);
+
+                    var table = new ConsoleTable("Location", "Current Leader", "# Players", "Prize $");
+                    foreach (var ranking in nacsRankings)
+                    {
+                        table.AddRow(ranking.StateProvinceName,
+                                     ranking.CurrentLeader.FirstName + " " + ranking.CurrentLeader.LastName,
+                                     ranking.UniquePlayerCount,
+                                     ranking.PrizeValue.ToString("c"));
+                    }
+
+                    var responseTable = table.ToMinimalString();
+                    responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+                    await message.RespondAsync($"NACS IFPA standings for {year}\n```{responseTable}```");
+                }
+            }
+            else if (commandcomponents[1].ToLower() == "player")
+            {
+                if (commandcomponents.Length < 3) 
+                {
+                    await message.RespondAsync($"Command `player` requires a name parameter");
                 }
 
-                var responseTable = table.ToMinimalString();
-                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
-                await message.RespondAsync($"NACS IFPA standings for {year}\n```{responseTable}```");
+                var searchString = string.Join(' ', commandcomponents.Skip(2));
+
+                var players = await IFPALegacyApi.SearchForPlayerByName(searchString);
+
+                var player = players.Search.FirstOrDefault();
+
+                if (player != null)
+                {
+                    await message.RespondAsync($"Searched for {searchString} and found the following\n" +
+                                               $"https://www.ifpapinball.com/player.php?p={player.PlayerId}");
+                                               
+                }
+                else
+                {
+                    await message.RespondAsync($"Found no players matching `{searchString}`");
+                }
             }
             else if (commandcomponents[1].ToLower() == "help")
             {
