@@ -9,6 +9,8 @@ namespace IFPACompanionDiscord
     public enum IFPACommandType
     {
         Rank,
-        Nacs
+        Nacs,
+
+        Help
     }
 }

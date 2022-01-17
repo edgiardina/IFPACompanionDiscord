@@ -15,6 +15,8 @@ namespace IFPACompanionDiscord
         private PinballRankingApiV2 IFPAApi { get; set; }
         private PinballRankingApiV1 IFPALegacyApi { get; set; }
 
+        private string HelpText { get; set; }
+
         public IFPABot(string token, string apiKey)
         {
             Token = token;
@@ -34,6 +36,9 @@ namespace IFPACompanionDiscord
                 Token = this.Token,
                 TokenType = TokenType.Bot
             });
+
+            //todo: allow bot language changing.
+            HelpText = await File.ReadAllTextAsync("Markdown/en-us/help.md");
 
             discordClient.MessageCreated += DiscordClient_MessageCreated;
 
@@ -68,13 +73,13 @@ namespace IFPACompanionDiscord
             }
             else
             {
-                await message.RespondAsync($"Expected a command after `/ifpa`");
+                await message.RespondAsync(HelpText);
             }
         }
 
         private async Task ProcessIFPACommand(string[] commandcomponents, DiscordMessage message)
         {
-            if (commandcomponents[1] == "rank")
+            if (commandcomponents[1].ToLower() == "rank")
             {
                 var rankings = await IFPAApi.GetWpprRanking(1, 20);
 
@@ -94,7 +99,7 @@ namespace IFPACompanionDiscord
 
                 await message.RespondAsync($"Top of the current IFPA rankings\n```{responseTable}```");
             }
-            else if (commandcomponents[1] == "nacs")
+            else if (commandcomponents[1].ToLower() == "nacs")
             {
                 int year = DateTime.Now.Year;
                 if (commandcomponents.Length >= 3)
@@ -122,6 +127,10 @@ namespace IFPACompanionDiscord
                 var responseTable = table.ToMinimalString();
                 responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
                 await message.RespondAsync($"NACS IFPA standings for {year}\n```{responseTable}```");
+            }
+            else if (commandcomponents[1].ToLower() == "help")
+            {
+                await message.RespondAsync(HelpText);
             }
         }
 
