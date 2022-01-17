@@ -7,10 +7,12 @@ namespace IFPACompanionDiscord
     public class IFPABot
     {
         private string Token;
+        private string IFPAApiKey;
 
-        public IFPABot(string token)
+        public IFPABot(string token, string apiKey)
         {
             Token = token;
+            IFPAApiKey = apiKey;    
         }
 
         /// <summary>

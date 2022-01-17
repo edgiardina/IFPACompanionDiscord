@@ -6,6 +6,6 @@ Console.WriteLine("Starting IFPA Companion Discord Bot");
 
 var builder = new ConfigurationBuilder()
         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+IConfiguration config = builder.Build();
 
-
-await new IFPABot().Run();
+await new IFPABot(config["Discord:Token"]).Run();
