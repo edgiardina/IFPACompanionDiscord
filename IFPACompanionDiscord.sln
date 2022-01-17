@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32014.148
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IFPACompanionDiscord", "IFPACompanionDiscord\IFPACompanionDiscord.csproj", "{B55ADAB3-E7E8-448A-BF01-FF37529A2014}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B55ADAB3-E7E8-448A-BF01-FF37529A2014}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B55ADAB3-E7E8-448A-BF01-FF37529A2014}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B55ADAB3-E7E8-448A-BF01-FF37529A2014}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B55ADAB3-E7E8-448A-BF01-FF37529A2014}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {17D821D3-C00F-4783-BE5F-252FB8D552A8}
+	EndGlobalSection
+EndGlobal

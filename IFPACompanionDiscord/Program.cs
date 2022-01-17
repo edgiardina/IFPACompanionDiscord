@@ -1,0 +1,11 @@
+﻿// See https://aka.ms/new-console-template for more information
+using IFPACompanionDiscord;
+using Microsoft.Extensions.Configuration;
+
+Console.WriteLine("Starting IFPA Companion Discord Bot");
+
+var builder = new ConfigurationBuilder()
+        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
+
+await new IFPABot().Run();
