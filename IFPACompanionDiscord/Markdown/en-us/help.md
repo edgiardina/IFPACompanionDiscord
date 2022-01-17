@@ -4,3 +4,4 @@ type `/ifpa <command>` where <command> is one of the following commands:
 
 rank
 nacs
+player

@@ -132,7 +132,7 @@ namespace IFPACompanionDiscord
                     }
                     else
                     {
-                        await message.RespondAsync($"State/Province {stateProv} returned no results");
+                        await message.RespondAsync($"State/Province `{stateProv}` returned no results");
                     }
                 }
                 else 
