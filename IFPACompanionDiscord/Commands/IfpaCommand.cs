@@ -217,26 +217,7 @@ namespace IFPACompanionDiscord.Commands
             resultsTable.Configure(options => new ConsoleTableOptions { NumberAlignment = Alignment.Right });
             resultsTable.Options.NumberAlignment = Alignment.Right;
             var playerTourneyResults = await IFPAApi.GetPlayerResults(playerDetails.PlayerId);
-
-            string resultsTableFormatted;
-            if (playerTourneyResults.Results != null)
-            {
-                foreach (var result in playerTourneyResults.Results)
-                {
-                    resultsTable.AddRow(result.TournamentName, result.Position.OrdinalSuffix(), result.EventDate.ToShortDateString(), result.CurrentPoints);
-                }
-                resultsTableFormatted = resultsTable.ToMinimalString();
-            }
-            else
-            {
-                resultsTableFormatted = "Player has no results";
-            }
-
-            resultsTableFormatted = resultsTableFormatted.Substring(0, Math.Min(resultsTableFormatted.Length, 1000));
-
-            var description = $"```{responseTable}\n" +
-                                       $"{resultsTableFormatted}```";
-
+                       
             var embed = new DiscordEmbedBuilder()
                          .WithTitle(playerDetails.FirstName + " " + playerDetails.LastName)
                                                   .WithUrl($"https://www.ifpapinball.com/player.php?p={playerId}")
@@ -245,9 +226,9 @@ namespace IFPACompanionDiscord.Commands
                          .AddField("Location", playerDetails.City + " " + playerDetails.CountryName)
                          .AddField("Ranking", playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix(), true)
                          .AddField("Rating", playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix(), true)
-                         .AddField("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked", true)
-                         //.AddField("Details", $"```{responseTable}```")
-                         .AddField("Active Results", $"```{resultsTableFormatted}```");
+                         .AddField("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked", true)                     
+                         //.AddField("Active Results", $"```{resultsTableFormatted}```")
+                         ;
 
             if (playerDetails.IfpaRegistered)
             {
@@ -257,6 +238,16 @@ namespace IFPACompanionDiscord.Commands
             if(playerDetails.ProfilePhoto != null)
             {
                 embed.WithThumbnail(playerDetails.ProfilePhoto);
+            }
+
+            if (playerTourneyResults.Results != null)
+            {
+                embed.AddField("Last 5 Results", String.Empty);
+
+                foreach (var result in playerTourneyResults.Results.Take(5))
+                {
+                    embed.AddField(result.TournamentName, $" \n{result.EventDate.ToShortDateString()}                        {result.EventName} \n **{result.Position.OrdinalSuffix()}**                                                     {result.CurrentPoints}");                    
+                }               
             }
 
 
