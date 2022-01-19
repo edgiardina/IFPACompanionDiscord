@@ -6,7 +6,6 @@ using PinballApi;
 using PinballApi.Extensions;
 using PinballApi.Models.WPPR.v1.Calendar;
 using PinballApi.Models.WPPR.v2.Rankings;
-using PinballApi.Models.WPPR.v2.Tournaments;
 
 namespace IFPACompanionDiscord.Commands
 {
@@ -202,33 +201,17 @@ namespace IFPACompanionDiscord.Commands
         {
             var playerDetails = await IFPAApi.GetPlayer(playerId);         
 
-            var table = new ConsoleTable(string.Empty, string.Empty, string.Empty);                       
-
-            table.AddRow("Ranking", $"{playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix()}", playerDetails.PlayerStats.CurrentWpprValue);
-            table.AddRow("Rating", playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix(), playerDetails.PlayerStats.RatingsValue);
-            table.AddRow("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix(), playerDetails.PlayerStats.EfficiencyValue);
-
-            var responseTable = table.ToMinimalString();
-            responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
-            //strip unused header
-            responseTable = responseTable.Replace("-", string.Empty).Trim();
-
-            var resultsTable = new ConsoleTable("Tournament", "Result", "Date", "Points");
-            resultsTable.Configure(options => new ConsoleTableOptions { NumberAlignment = Alignment.Right });
-            resultsTable.Options.NumberAlignment = Alignment.Right;
             var playerTourneyResults = await IFPAApi.GetPlayerResults(playerDetails.PlayerId);
                        
             var embed = new DiscordEmbedBuilder()
                          .WithTitle(playerDetails.FirstName + " " + playerDetails.LastName)
-                                                  .WithUrl($"https://www.ifpapinball.com/player.php?p={playerId}")
+                         .WithUrl($"https://www.ifpapinball.com/player.php?p={playerId}")
                          .WithColor(new DiscordColor("#072C53"))
                          .WithDescription($"IFPA #{playerDetails.PlayerId} [{playerDetails.Initials}]")
                          .AddField("Location", playerDetails.City + " " + playerDetails.CountryName)
                          .AddField("Ranking", playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix(), true)
                          .AddField("Rating", playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix(), true)
-                         .AddField("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked", true)                     
-                         //.AddField("Active Results", $"```{resultsTableFormatted}```")
-                         ;
+                         .AddField("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked", true);
 
             if (playerDetails.IfpaRegistered)
             {
@@ -242,14 +225,11 @@ namespace IFPACompanionDiscord.Commands
 
             if (playerTourneyResults.Results != null)
             {
-                embed.AddField("Last 5 Results", String.Empty);
-
                 foreach (var result in playerTourneyResults.Results.Take(5))
                 {
                     embed.AddField(result.TournamentName, $" \n{result.EventDate.ToShortDateString()}                        {result.EventName} \n **{result.Position.OrdinalSuffix()}**                                                     {result.CurrentPoints}");                    
                 }               
             }
-
 
             await ctx.Message.RespondAsync(embed);
         }
