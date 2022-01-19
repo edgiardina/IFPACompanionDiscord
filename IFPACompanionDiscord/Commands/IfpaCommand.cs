@@ -13,11 +13,11 @@ namespace IFPACompanionDiscord.Commands
         public PinballRankingApiV1 IFPALegacyApi { private get; set; }
 
         #region rank
-        [Command("rank")]
-        [Description("Retrieve top 20 IFPA ranked players")]
+        [Command("rank"), Aliases("ranking")]
+        [Description("Retrieve top 40 IFPA ranked players for a ranking type (women, youth, main, country)")]
         public async Task RankCommand(CommandContext ctx)
         {
-            var rankings = await IFPAApi.GetWpprRanking(1, 20);
+            var rankings = await IFPAApi.GetWpprRanking(1, 40);
 
             var table = new ConsoleTable("Rank", "Player", "Points");
 
@@ -37,8 +37,8 @@ namespace IFPACompanionDiscord.Commands
         }
 
         [Command("rank")]
-        [Description("Retrieve top 20 IFPA ranked players for a ranking type (women, youth)")]
-        public async Task RankCommand(CommandContext ctx, 
+        [Description("Retrieve top 40 IFPA ranked players for a ranking type (women, youth, main, country)")]
+        public async Task RankCommand(CommandContext ctx,
                                       [Description("A ranking type (women, youth, main)")] string rankingType)
         {
             WomensRanking womensRanking = null;
@@ -50,7 +50,7 @@ namespace IFPACompanionDiscord.Commands
                 return;
             }
 
-            if(rankingType.ToLower() == "main")
+            if (rankingType.ToLower() == "main")
             {
                 await RankCommand(ctx);
                 return;
@@ -58,11 +58,11 @@ namespace IFPACompanionDiscord.Commands
 
             if (rankingType.ToLower() == "women")
             {
-                womensRanking = await IFPAApi.GetRankingForWomen(TournamentType.Open);
+                womensRanking = await IFPAApi.GetRankingForWomen(TournamentType.Open, 1, 40);
             }
             else if (rankingType.ToLower() == "youth")
             {
-                youthRanking = await IFPAApi.GetRankingForYouth(1, 50);
+                youthRanking = await IFPAApi.GetRankingForYouth(1, 40);
             }
 
             var table = new ConsoleTable("Rank", "Player", "Points");
@@ -82,6 +82,32 @@ namespace IFPACompanionDiscord.Commands
             await ctx.Message.RespondAsync($"Top of the current IFPA {rankingType} rankings\n```{responseTable}```");
         }
 
+        [Command("rank")]
+        [Description("Retrieve top 40 IFPA ranked players for a ranking type (women, youth, main, country)")]
+        public async Task RankCommand(CommandContext ctx,
+                                     [Description("'country'")] string rankingType,
+                                     [RemainingText][Description("Country Name")] string countryName)
+        {
+            var table = new ConsoleTable("Rank", "Player", "Points");
+
+            var index = 1;
+
+            var countryRankings = await IFPAApi.GetRankingForCountry(countryName, 1, 40);
+
+            foreach (var ranking in countryRankings.Rankings)
+            {
+                table.AddRow(index,
+                             ranking.FirstName + " " + ranking.LastName,
+                             ranking.WpprPoints.ToString("N2"));
+                index++;
+            }
+
+            var responseTable = table.ToMinimalString();
+            responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+
+            await ctx.Message.RespondAsync($"Top of the current IFPA rankings for {countryName}\n```{responseTable}```");
+        }
+
         #endregion
 
         #region nacs
@@ -94,7 +120,7 @@ namespace IFPACompanionDiscord.Commands
 
         [Command("nacs")]
         [Description("Retrieve NACS Ranking Data")]
-        public async Task NacsCommand(CommandContext ctx, [Description("Year of the NACS data to show")] int year) 
+        public async Task NacsCommand(CommandContext ctx, [Description("Year of the NACS data to show")] int year)
         {
             var nacsRankings = await IFPAApi.GetNacsStandings(year);
 
@@ -115,8 +141,8 @@ namespace IFPACompanionDiscord.Commands
 
         [Command("nacs")]
         [Description("Retrieve NACS Ranking Data")]
-        public async Task NacsCommand(CommandContext ctx, 
-                                     [Description("Year of the NACS data to show")]int year, 
+        public async Task NacsCommand(CommandContext ctx,
+                                     [Description("Year of the NACS data to show")] int year,
                                      [Description("Two letter State or Province abbreviation")] string stateProvince)
         {
             var nacsStateProvRankings = await IFPAApi.GetNacsStateProvinceStandings(stateProvince, year);
@@ -142,48 +168,71 @@ namespace IFPACompanionDiscord.Commands
 
         #region player
         [Command("player")]
-        [Description("Search for a player by name")]
+        [Description("Search for a player by name or IFPA number")]
         public async Task PlayerCommand(CommandContext ctx, [RemainingText][Description("Name to search for")] string searchString)
         {
+            var isNumeric = int.TryParse(searchString, out var playerId);
+
+            if (isNumeric)
+            {
+                await PlayerCommand(ctx, playerId);
+                return;
+            }
+
             var players = await IFPALegacyApi.SearchForPlayerByName(searchString);
 
             var player = players.Search.FirstOrDefault();
 
             if (player != null)
             {
-                var playerDetails = await IFPAApi.GetPlayer(player.PlayerId);
-
-                var table = new ConsoleTable(player.FirstName + " " + player.LastName, string.Empty, string.Empty);
-
-                table.AddRow("Ranking", $"{player.WpprRank.OrdinalSuffix()}", playerDetails.PlayerStats.CurrentWpprValue);
-                table.AddRow("Rating", playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix(), playerDetails.PlayerStats.RatingsValue);
-                table.AddRow("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix(), playerDetails.PlayerStats.EfficiencyValue);
-
-                var responseTable = table.ToMinimalString();
-                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
-
-                var resultsTable = new ConsoleTable("Tournament", "Event", "Result", "Date", "Points");
-                resultsTable.Options.NumberAlignment = Alignment.Right;
-                var playerTourneyResults = await IFPAApi.GetPlayerResults(player.PlayerId);
-
-                foreach (var result in playerTourneyResults.Results)
-                {
-                    resultsTable.AddRow(result.TournamentName, result.EventName, result.Position.OrdinalSuffix(), result.EventDate.ToShortDateString(), result.CurrentPoints);
-                }
-
-                var resultsTableFormatted = resultsTable.ToMinimalString();
-                resultsTableFormatted = resultsTableFormatted.Substring(0, Math.Min(resultsTableFormatted.Length, 1500));
-                await ctx.Message.RespondAsync($"Searched for {searchString} and found the following\n" +
-                                           $"https://www.ifpapinball.com/player.php?p={player.PlayerId}\n" +
-                                           $"```{responseTable}\n" +
-                                           $"{resultsTableFormatted}```");
-
+                await PlayerCommand(ctx, player.PlayerId);
             }
             else
             {
                 await ctx.Message.RespondAsync($"Found no players matching `{searchString}`");
             }
         }
+
+        [Command("player")]
+        [Description("Search for a player by name or IFPA number")]
+        public async Task PlayerCommand(CommandContext ctx, [Description("Player's IFPA number")] int playerId)
+        {
+            var playerDetails = await IFPAApi.GetPlayer(playerId);
+
+            var table = new ConsoleTable(playerDetails.FirstName + " " + playerDetails.LastName, string.Empty, string.Empty);
+
+            table.AddRow("Ranking", $"{playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix()}", playerDetails.PlayerStats.CurrentWpprValue);
+            table.AddRow("Rating", playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix(), playerDetails.PlayerStats.RatingsValue);
+            table.AddRow("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix(), playerDetails.PlayerStats.EfficiencyValue);
+
+            var responseTable = table.ToMinimalString();
+            responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+
+            var resultsTable = new ConsoleTable("Tournament", "Event", "Result", "Date", "Points");
+            resultsTable.Options.NumberAlignment = Alignment.Right;
+            var playerTourneyResults = await IFPAApi.GetPlayerResults(playerDetails.PlayerId);
+
+            string resultsTableFormatted;
+            if (playerTourneyResults.Results != null)
+            {
+                foreach (var result in playerTourneyResults.Results)
+                {
+                    resultsTable.AddRow(result.TournamentName, result.EventName, result.Position.OrdinalSuffix(), result.EventDate.ToShortDateString(), result.CurrentPoints);
+                }
+                resultsTableFormatted = resultsTable.ToMinimalString();
+            }
+            else
+            {
+                resultsTableFormatted = "Player has no results";
+            }
+
+            resultsTableFormatted = resultsTableFormatted.Substring(0, Math.Min(resultsTableFormatted.Length, 1500));
+            await ctx.Message.RespondAsync($"Found the following player\n" +
+                                       $"https://www.ifpapinball.com/player.php?p={playerId}\n" +
+                                       $"```{responseTable}\n" +
+                                       $"{resultsTableFormatted}```");
+        }
+
         #endregion
     }
 }
