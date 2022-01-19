@@ -1,9 +1,12 @@
 ﻿using ConsoleTables;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
+using DSharpPlus.Entities;
 using PinballApi;
 using PinballApi.Extensions;
+using PinballApi.Models.WPPR.v1.Calendar;
 using PinballApi.Models.WPPR.v2.Rankings;
+using PinballApi.Models.WPPR.v2.Tournaments;
 
 namespace IFPACompanionDiscord.Commands
 {
@@ -197,9 +200,9 @@ namespace IFPACompanionDiscord.Commands
         [Description("Search for a player by name or IFPA number")]
         public async Task PlayerCommand(CommandContext ctx, [Description("Player's IFPA number")] int playerId)
         {
-            var playerDetails = await IFPAApi.GetPlayer(playerId);
+            var playerDetails = await IFPAApi.GetPlayer(playerId);         
 
-            var table = new ConsoleTable(playerDetails.FirstName + " " + playerDetails.LastName, string.Empty, string.Empty);
+            var table = new ConsoleTable(string.Empty, string.Empty, string.Empty);                       
 
             table.AddRow("Ranking", $"{playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix()}", playerDetails.PlayerStats.CurrentWpprValue);
             table.AddRow("Rating", playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix(), playerDetails.PlayerStats.RatingsValue);
@@ -207,8 +210,11 @@ namespace IFPACompanionDiscord.Commands
 
             var responseTable = table.ToMinimalString();
             responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+            //strip unused header
+            responseTable = responseTable.Replace("-", string.Empty).Trim();
 
-            var resultsTable = new ConsoleTable("Tournament", "Event", "Result", "Date", "Points");
+            var resultsTable = new ConsoleTable("Tournament", "Result", "Date", "Points");
+            resultsTable.Configure(options => new ConsoleTableOptions { NumberAlignment = Alignment.Right });
             resultsTable.Options.NumberAlignment = Alignment.Right;
             var playerTourneyResults = await IFPAApi.GetPlayerResults(playerDetails.PlayerId);
 
@@ -217,7 +223,7 @@ namespace IFPACompanionDiscord.Commands
             {
                 foreach (var result in playerTourneyResults.Results)
                 {
-                    resultsTable.AddRow(result.TournamentName, result.EventName, result.Position.OrdinalSuffix(), result.EventDate.ToShortDateString(), result.CurrentPoints);
+                    resultsTable.AddRow(result.TournamentName, result.Position.OrdinalSuffix(), result.EventDate.ToShortDateString(), result.CurrentPoints);
                 }
                 resultsTableFormatted = resultsTable.ToMinimalString();
             }
@@ -226,11 +232,70 @@ namespace IFPACompanionDiscord.Commands
                 resultsTableFormatted = "Player has no results";
             }
 
-            resultsTableFormatted = resultsTableFormatted.Substring(0, Math.Min(resultsTableFormatted.Length, 1500));
-            await ctx.Message.RespondAsync($"Found the following player\n" +
-                                       $"https://www.ifpapinball.com/player.php?p={playerId}\n" +
-                                       $"```{responseTable}\n" +
-                                       $"{resultsTableFormatted}```");
+            resultsTableFormatted = resultsTableFormatted.Substring(0, Math.Min(resultsTableFormatted.Length, 1000));
+
+            var description = $"```{responseTable}\n" +
+                                       $"{resultsTableFormatted}```";
+
+            var embed = new DiscordEmbedBuilder()
+                         .WithTitle(playerDetails.FirstName + " " + playerDetails.LastName)
+                                                  .WithUrl($"https://www.ifpapinball.com/player.php?p={playerId}")
+                         .WithColor(new DiscordColor("#072C53"))
+                         .WithDescription($"IFPA #{playerDetails.PlayerId} [{playerDetails.Initials}]")
+                         .AddField("Location", playerDetails.City + " " + playerDetails.CountryName)
+                         .AddField("Ranking", playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix(), true)
+                         .AddField("Rating", playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix(), true)
+                         .AddField("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked", true)
+                         //.AddField("Details", $"```{responseTable}```")
+                         .AddField("Active Results", $"```{resultsTableFormatted}```");
+
+            if (playerDetails.IfpaRegistered)
+            {
+                embed.WithFooter("IFPA Registered", "https://www.ifpapinball.com/images/confirmed.png");
+            }
+
+            if(playerDetails.ProfilePhoto != null)
+            {
+                embed.WithThumbnail(playerDetails.ProfilePhoto);
+            }
+
+
+            await ctx.Message.RespondAsync(embed);
+        }
+
+        #endregion
+
+        #region tournaments
+
+        [Command("tournaments"), Aliases("tourney")]
+        [Description("Retrieve upcoming tournaments by location")]
+        public async Task TournamentsCommand(CommandContext ctx,                                             
+                                            [Description("Radius in miles from the location")]int radiusInMiles,
+                                            [RemainingText][Description("Location to search tournaments near")] string location)
+        {
+            var tournaments = await IFPALegacyApi.GetCalendarSearch(location, radiusInMiles, DistanceUnit.Miles);
+
+            if (tournaments.Calendar != null)
+            {
+                var table = new ConsoleTable("Tournament", "Location", "Director", "Link");
+
+                foreach (var tournament in tournaments.Calendar)
+                {
+                    table.AddRow(tournament.TournamentName,
+                                 tournament.City,
+                                 tournament.DirectorName,
+                                 tournament.Website);
+                }
+
+                var responseTable = table.ToMinimalString();
+                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+
+                await ctx.Message.RespondAsync($"Upcoming tournaments near {location}\n```{responseTable}```");
+            }
+            else
+            {
+                await ctx.Message.RespondAsync($"No upcoming tournaments near {location}");
+            }
         }
 
         #endregion
