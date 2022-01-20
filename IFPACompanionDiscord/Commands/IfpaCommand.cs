@@ -2,6 +2,7 @@
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
+using IFPACompanionDiscord.Extensions;
 using PinballApi;
 using PinballApi.Extensions;
 using PinballApi.Models.WPPR.v1.Calendar;
@@ -128,7 +129,7 @@ namespace IFPACompanionDiscord.Commands
 
             var table = new ConsoleTable("Location", "Current Leader", "# Players", "Prize $");
 
-            foreach (var ranking in nacsRankings)
+            foreach (var ranking in nacsRankings.Take(40))
             {
                 table.AddRow(ranking.StateProvinceName,
                              ranking.CurrentLeader.FirstName + " " + ranking.CurrentLeader.LastName,
@@ -153,12 +154,12 @@ namespace IFPACompanionDiscord.Commands
             table.Options.NumberAlignment = Alignment.Right;
             if (nacsStateProvRankings.PlayerStandings != null)
             {
-                foreach (var ranking in nacsStateProvRankings.PlayerStandings)
+                foreach (var ranking in nacsStateProvRankings.PlayerStandings.Take(40))
                 {
                     table.AddRow(ranking.Position, ranking.FirstName + " " + ranking.LastName, ranking.WpprPoints, ranking.EventCount);
                 }
                 var responseTable = table.ToMinimalString();
-                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950)).RemoveCharactersAfterLastOccurrence('\n'); 
                 await ctx.Message.RespondAsync($"NACS IFPA standings for {year} in {stateProvince}\n```{responseTable}```");
             }
             else
@@ -209,9 +210,9 @@ namespace IFPACompanionDiscord.Commands
                          .WithColor(new DiscordColor("#072C53"))
                          .WithDescription($"IFPA #{playerDetails.PlayerId} [{playerDetails.Initials}]")
                          .AddField("Location", playerDetails.City + " " + playerDetails.CountryName)
-                         .AddField("Ranking", playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix(), true)
-                         .AddField("Rating", playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix(), true)
-                         .AddField("Eff percent", playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked", true);
+                         .AddField("Ranking", $"{playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix()}     {playerDetails.PlayerStats.CurrentWpprValue.ToString("F2")}", true)
+                         .AddField("Rating", $"{playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix()}     {playerDetails.PlayerStats.RatingsValue?.ToString("F2")}", true)
+                         .AddField("Eff percent", $"{playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked"}      {playerDetails.PlayerStats.EfficiencyValue?.ToString("F2")}", true);
 
             if (playerDetails.IfpaRegistered)
             {
@@ -248,18 +249,18 @@ namespace IFPACompanionDiscord.Commands
 
             if (tournaments.Calendar != null)
             {
-                var table = new ConsoleTable("Tournament", "Location", "Director", "Link");
+                var table = new ConsoleTable("Tournament", "Date", "Location", "");
 
                 foreach (var tournament in tournaments.Calendar)
                 {
                     table.AddRow(tournament.TournamentName,
+                                 tournament.StartDate.ToShortDateString(),
                                  tournament.City,
-                                 tournament.DirectorName,
                                  tournament.Website);
                 }
 
                 var responseTable = table.ToMinimalString();
-                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950)).RemoveCharactersAfterLastOccurrence('\n');
 
                 await ctx.Message.RespondAsync($"Upcoming tournaments near {location}\n```{responseTable}```");
             }
