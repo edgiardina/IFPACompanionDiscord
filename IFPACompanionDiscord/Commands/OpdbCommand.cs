@@ -21,14 +21,14 @@ namespace IFPACompanionDiscord.Commands
                          .WithColor(new DiscordColor("#072C53"))
                          .WithDescription(pinballMachine.Description)
                          .AddField("Manufacturer", pinballMachine.Manufacturer.Name)
-                         .AddField("Manufacturer Date", pinballMachine.ManufactureDate)
+                         .AddField("Manufacturer Date", pinballMachine.ManufactureDate.ToString("d"))
                          .AddField("Type", pinballMachine.Type)
                          .AddField("Display", pinballMachine.Display);
 
 
             if (pinballMachine.Images.Any())
             {
-                embed.WithThumbnail(pinballMachine.Images.First().Urls.Large);
+                embed.WithThumbnail(pinballMachine.Images.Single(n => n.Primary).Urls.Large);
             }
 
             await ctx.Message.RespondAsync(embed);

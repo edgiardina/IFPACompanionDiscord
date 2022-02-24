@@ -11,7 +11,7 @@
     <PackageReference Include="DSharpPlus.CommandsNext" Version="4.1.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
-    <PackageReference Include="PinballApi" Version="2.0.69" />
+    <PackageReference Include="PinballApi" Version="2.0.74" />
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json">

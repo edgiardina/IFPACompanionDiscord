@@ -113,7 +113,7 @@ namespace IFPACompanionDiscord.Commands
 
         #endregion
 
-        #region nacs
+        #region championshipseries
         [Command("nacs")]
         [Description("Retrieve NACS Ranking Data")]
         public async Task NacsCommand(CommandContext ctx)
@@ -125,48 +125,128 @@ namespace IFPACompanionDiscord.Commands
         [Description("Retrieve NACS Ranking Data")]
         public async Task NacsCommand(CommandContext ctx, [Description("Year of the NACS data to show")] int year)
         {
-            var nacsRankings = await IFPAApi.GetNacsStandings(year);
-
-            var table = new ConsoleTable("Location", "Current Leader", "# Players", "Prize $");
-
-            foreach (var ranking in nacsRankings.Take(40))
-            {
-                table.AddRow(ranking.StateProvinceName,
-                             ranking.CurrentLeader.FirstName + " " + ranking.CurrentLeader.LastName,
-                             ranking.UniquePlayerCount,
-                             ranking.PrizeValue.ToString("c"));
-            }
-
-            var responseTable = table.ToMinimalString();
-            responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
-            await ctx.Message.RespondAsync($"NACS IFPA standings for {year}\n```{responseTable}```");
+            await ChampionshipSeriesOverallDataCommand(ctx, "NACS", year);
         }
 
         [Command("nacs")]
         [Description("Retrieve NACS Ranking Data")]
         public async Task NacsCommand(CommandContext ctx,
                                      [Description("Year of the NACS data to show")] int year,
-                                     [Description("Two letter State or Province abbreviation")] string stateProvince)
+                                     [Description("Two letter Region Code")] string region)
         {
-            var nacsStateProvRankings = await IFPAApi.GetNacsStateProvinceStandings(stateProvince, year);
+            await ChampionshipSeriesRankingDataCommand(ctx, "NACS", year, region);
+        }
+
+        [Command("acs")]
+        [Description("Retrieve ACS Ranking Data")]
+        public async Task AcsCommand(CommandContext ctx)
+        {
+            await AcsCommand(ctx, DateTime.Now.Year);
+        }
+
+        [Command("acs")]
+        [Description("Retrieve ACS Ranking Data")]
+        public async Task AcsCommand(CommandContext ctx, [Description("Year of the ACS data to show")] int year)
+        {
+            await ChampionshipSeriesOverallDataCommand(ctx, "ACS", year);
+        }
+
+        [Command("acs")]
+        [Description("Retrieve ACS Ranking Data")]
+        public async Task AcsCommand(CommandContext ctx,
+                                     [Description("Year of the ACS data to show")] int year,
+                                     [Description("Two letter Region Code")] string region)
+        {
+            await ChampionshipSeriesRankingDataCommand(ctx, "ACS", year, region);
+        }
+
+        [Command("wnacso")]
+        [Description("Retrieve Women's CS (Open) Ranking Data")]
+        public async Task WnacsoCommand(CommandContext ctx)
+        {
+            await WnacsoCommand(ctx, DateTime.Now.Year);
+        }
+
+        [Command("wnacso")]
+        [Description("Retrieve Women's CS (Open) Ranking Data")]
+        public async Task WnacsoCommand(CommandContext ctx, [Description("Year of the WNACSO data to show")] int year)
+        {
+            await ChampionshipSeriesOverallDataCommand(ctx, "WNACSO", year);
+        }
+
+        [Command("wnacso")]
+        [Description("Retrieve Women's CS (Open) Ranking Data")]
+        public async Task WnacsoCommand(CommandContext ctx,
+                                     [Description("Year of the WNACSO data to show")] int year,
+                                     [Description("Two letter Region Code")] string region)
+        {
+            await ChampionshipSeriesRankingDataCommand(ctx, "WNACSO", year, region);
+        }
+
+        [Command("wnacsw")]
+        [Description("Retrieve Women's CS (Women) Ranking Data")]
+        public async Task WnacswCommand(CommandContext ctx)
+        {
+            await WnacswCommand(ctx, DateTime.Now.Year);
+        }
+
+        [Command("wnacsw")]
+        [Description("Retrieve Women's CS (Women) Ranking Data")]
+        public async Task WnacswCommand(CommandContext ctx, [Description("Year of the WNACSW data to show")] int year)
+        {
+            await ChampionshipSeriesOverallDataCommand(ctx, "WNACSW", year);
+        }
+
+        [Command("wnacsw")]
+        [Description("Retrieve Women's CS (Women) Ranking Data")]
+        public async Task WnacswCommand(CommandContext ctx,
+                                     [Description("Year of the WNACSW data to show")] int year,
+                                     [Description("Two letter Region Code")] string region)
+        {
+            await ChampionshipSeriesRankingDataCommand(ctx, "WNACSW", year, region);
+        }
+
+        private async Task ChampionshipSeriesOverallDataCommand(CommandContext ctx, string seriesCode, int year)
+        {
+            var seriesRanking = await IFPAApi.GetSeriesOverallStanding(seriesCode);
+
+            var table = new ConsoleTable("Location", "Current Leader", "# Players", "Prize $");
+
+            foreach (var ranking in seriesRanking.OverallResults.Take(40))
+            {
+                table.AddRow(ranking.RegionName,
+                             ranking.CurrentLeader.PlayerName,
+                             ranking.UniquePlayerCount,
+                             ranking.PrizeFund.ToString("c"));
+            }
+
+            var responseTable = table.ToMinimalString();
+            responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+            await ctx.Message.RespondAsync($"{seriesCode} IFPA standings for {year}\n```{responseTable}```");
+        }
+
+        private async Task ChampionshipSeriesRankingDataCommand(CommandContext ctx, string seriesCode, int year, string region)
+        {
+            var championshipSeries = await IFPAApi.GetSeriesStandingsForRegion(seriesCode, region, year);
 
             var table = new ConsoleTable("Rank", "Player", "Points", "# Events");
             table.Options.NumberAlignment = Alignment.Right;
-            if (nacsStateProvRankings.PlayerStandings != null)
+            if (championshipSeries.Standings != null)
             {
-                foreach (var ranking in nacsStateProvRankings.PlayerStandings.Take(40))
+                foreach (var ranking in championshipSeries.Standings.Take(40))
                 {
-                    table.AddRow(ranking.Position, ranking.FirstName + " " + ranking.LastName, ranking.WpprPoints, ranking.EventCount);
+                    table.AddRow(ranking.SeriesRank, ranking.PlayerName, ranking.WpprPoints, ranking.EventCount);
                 }
                 var responseTable = table.ToMinimalString();
-                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950)).RemoveCharactersAfterLastOccurrence('\n'); 
-                await ctx.Message.RespondAsync($"NACS IFPA standings for {year} in {stateProvince}\n```{responseTable}```");
+                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950)).RemoveCharactersAfterLastOccurrence('\n');
+                await ctx.Message.RespondAsync($"{seriesCode} IFPA standings for {year} in {region}\n```{responseTable}```");
             }
             else
             {
-                await ctx.Message.RespondAsync($"State/Province `{stateProvince}` returned no results");
+                await ctx.Message.RespondAsync($"Region `{region}` returned no results");
             }
         }
+
         #endregion
 
         #region player
