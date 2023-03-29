@@ -10,6 +10,7 @@ using PinballApi.Models.WPPR.v2.Rankings;
 
 namespace IFPACompanionDiscord.Commands
 {
+    [Obsolete("this used raw string parsing of the prefix '/ifpa'. The slash command implementation is preferred.")]
     public class IfpaCommand : BaseCommandModule
     {
         public PinballRankingApiV2 IFPAApi { private get; set; }
@@ -59,24 +60,32 @@ namespace IFPACompanionDiscord.Commands
                 return;
             }
 
+            var table = new ConsoleTable("Rank", "Player", "Points");
+
+            var index = 1;
+
             if (rankingType.ToLower() == "women")
             {
                 womensRanking = await IFPAApi.GetRankingForWomen(TournamentType.Open, 1, 40);
+                foreach (var ranking in womensRanking.Rankings)
+                {
+                    table.AddRow(index,
+                                 ranking.FirstName + " " + ranking.LastName,
+                                 ranking.WpprPoints.ToString("N2"));
+                    index++;
+                }
             }
             else if (rankingType.ToLower() == "youth")
             {
                 youthRanking = await IFPAApi.GetRankingForYouth(1, 40);
-            }
 
-            var table = new ConsoleTable("Rank", "Player", "Points");
-
-            var index = 1;
-            foreach (var ranking in womensRanking?.Rankings ?? youthRanking.Rankings)
-            {
-                table.AddRow(index,
-                             ranking.FirstName + " " + ranking.LastName,
-                             ranking.WpprPoints.ToString("N2"));
-                index++;
+                foreach (var ranking in youthRanking.Rankings)
+                {
+                    table.AddRow(index,
+                                 ranking.FirstName + " " + ranking.LastName,
+                                 ranking.WpprPoints.ToString("N2"));
+                    index++;
+                }
             }
 
             var responseTable = table.ToMinimalString();
