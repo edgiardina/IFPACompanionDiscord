@@ -8,6 +8,6 @@ var builder = new ConfigurationBuilder()
         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 IConfiguration config = builder.Build();
 
-var ifpaBot = new IFPABot(config["Discord:Token"], config["PinballApi:IFPAApiKey"]);
+var ifpaBot = new IFPABot(config["Discord:Token"], config["PinballApi:IFPAApiKey"], config["OPDB:OPDBToken"]);
 
 await ifpaBot.Run();
