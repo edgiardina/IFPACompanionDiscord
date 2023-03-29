@@ -3,6 +3,7 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
+using DSharpPlus.SlashCommands;
 using IFPACompanionDiscord.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using PinballApi;
@@ -52,14 +53,20 @@ namespace IFPACompanionDiscord
                                 .BuildServiceProvider();
 
             //discordClient.MessageCreated += DiscordClient_MessageCreated;
-            var commands = discordClient.UseCommandsNext(new CommandsNextConfiguration()
+            //var commands = discordClient.UseCommandsNext(new CommandsNextConfiguration()
+            //{
+            //    StringPrefixes = new[] { "/ifpa", "/opdb" },
+            //    Services = services
+            //});           
+
+            //commands.RegisterCommands<IfpaCommand>();
+            //commands.RegisterCommands<OpdbCommand>();
+
+            var slashCommands = discordClient.UseSlashCommands(new SlashCommandsConfiguration
             {
-                StringPrefixes = new[] { "/ifpa", "/opdb" },
                 Services = services
             });
-
-            commands.RegisterCommands<IfpaCommand>();
-            commands.RegisterCommands<OpdbCommand>();
+            slashCommands.RegisterCommands<IfpaSlashCommand>();
 
             await discordClient.ConnectAsync();
             await Task.Delay(-1);
