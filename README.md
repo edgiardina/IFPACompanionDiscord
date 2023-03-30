@@ -15,7 +15,7 @@ cd /IFPACompanionDiscord/IFPACompanionDiscord
 docker build --tag ifpa-discord-image .
 docker save -o ifpa-discord-image.tar ifpa-discord-image
 ```
-Copy tar file to docker host
-Delete existing Container and Image
-Load new Image from tar file
-Create new Container and start
+- Copy tar file to docker host
+- Delete existing Container and Image
+- Load new Image from tar file
+- Create new Container and start
