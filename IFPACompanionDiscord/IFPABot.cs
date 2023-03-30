@@ -1,16 +1,9 @@
-﻿using ConsoleTables;
-using DSharpPlus;
-using DSharpPlus.CommandsNext;
-using DSharpPlus.Entities;
-using DSharpPlus.EventArgs;
+﻿using DSharpPlus;
 using DSharpPlus.SlashCommands;
 using IFPACompanionDiscord.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using PinballApi;
-using PinballApi.Extensions;
 using PinballApi.Interfaces;
-using PinballApi.Models.WPPR.v2.Players;
-using System.Globalization;
 
 namespace IFPACompanionDiscord
 {

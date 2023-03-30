@@ -1,20 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ConsoleTables;
-using DSharpPlus.CommandsNext.Attributes;
+﻿using ConsoleTables;
 using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
 using IFPACompanionDiscord.Extensions;
 using PinballApi;
 using PinballApi.Models.WPPR.v1.Calendar;
 using PinballApi.Models.WPPR.v2.Rankings;
-using PinballApi.Models.WPPR.v2;
 using PinballApi.Models.WPPR.v2.Players;
 using DSharpPlus;
 using PinballApi.Extensions;
+using IFPACompanionDiscord.Commands.ChoiceProviders;
 
 namespace IFPACompanionDiscord.Commands
 {
@@ -24,25 +18,56 @@ namespace IFPACompanionDiscord.Commands
         public PinballRankingApiV2 IFPAApi { get; set; }
         public PinballRankingApiV1 IFPALegacyApi { get; set; }
 
-        //[SlashCommandGroup("rank", "Retrieve top 40 IFPA ranked players for a ranking type (women, youth, main, country)")]
-        //public class RankCommand : ApplicationCommandModule
-        //{
-        //    [SlashCommand("command", "description")]
-        //    public async Task Command(InteractionContext ctx) { }
+        [SlashCommand("series", "Retrieve Championship Series Ranking Data")]
+        public async Task SeriesCommand(InteractionContext ctx,
+                                    [ChoiceProvider(typeof(SeriesChoiceProvider))]
+                                    [Option("series", "Championship Series")] string series,
+                                    [Option("year", "Year")] long? year = null,
+                                    [Option("region", "Two-letter region code")] string region = null)
+        {
+            if (year == null)
+                year = DateTime.Now.Year;
 
-        //    [SlashCommand("command2", "description")]
-        //    public async Task Command2(InteractionContext ctx) { }
-        //}
+            if(string.IsNullOrWhiteSpace(region))
+            {
+                var seriesRanking = await IFPAApi.GetSeriesOverallStanding(series, (int)year);
 
-        //[SlashCommandGroup("player", "description")]
-        //public class PlayerCommand : ApplicationCommandModule
-        //{
-        //    [SlashCommand("command", "description")]
-        //    public async Task Command(InteractionContext ctx) { }
+                var table = new ConsoleTable("Location", "Current Leader", "# Players", "Prize $");
 
-        //    [SlashCommand("command2", "description")]
-        //    public async Task Command2(InteractionContext ctx) { }
-        //}
+                foreach (var ranking in seriesRanking.OverallResults.Take(40))
+                {
+                    table.AddRow(ranking.RegionName,
+                                 ranking.CurrentLeader.PlayerName,
+                                 ranking.UniquePlayerCount,
+                                 ranking.PrizeFund.ToString("c"));
+                }
+
+                var responseTable = table.ToMinimalString();
+                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"{series} IFPA standings for {year}\n```{responseTable}```"));
+            }
+            else
+            {
+                var championshipSeries = await IFPAApi.GetSeriesStandingsForRegion(series, region, (int)year);
+
+                var table = new ConsoleTable("Rank", "Player", "Points", "# Events");
+                table.Options.NumberAlignment = Alignment.Right;
+                if (championshipSeries.Standings != null)
+                {
+                    foreach (var ranking in championshipSeries.Standings.Take(40))
+                    {
+                        table.AddRow(ranking.SeriesRank, ranking.PlayerName, ranking.WpprPoints, ranking.EventCount);
+                    }
+                    var responseTable = table.ToMinimalString();
+                    responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950)).RemoveCharactersAfterLastOccurrence('\n');
+                    await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"{series} IFPA standings for {year} in {region}\n```{responseTable}```"));
+                }
+                else
+                {
+                    await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Region `{region}` returned no results"));
+                }
+            }
+        }
 
         public enum RankType
         {
@@ -135,7 +160,15 @@ namespace IFPACompanionDiscord.Commands
             else if (String.IsNullOrWhiteSpace(name) == false)
             {
                 var players = await IFPAApi.GetPlayersBySearch(new PlayerSearchFilter { Name = name });
-                playerDetails = players.Results.FirstOrDefault();
+                if (players.Results.Count > 0)
+                {
+                    playerDetails = await IFPAApi.GetPlayer(players.Results.First().PlayerId);
+                }
+                else
+                {
+                    await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Search Criteria did not find any players"));
+                    return;
+                }
             }
             else
             {
@@ -177,7 +210,7 @@ namespace IFPACompanionDiscord.Commands
         }
 
 
-            [SlashCommand("tournaments", "Retrieve upcoming tournaments by location")]
+        [SlashCommand("tournaments", "Retrieve upcoming tournaments by location")]
         public async Task TournamentsCommand(InteractionContext ctx, 
                                             [Option("Radius","Radius in miles from the location")] long radiusInMiles,
                                             [Option("Location", "Location to search tournaments near")] string location) 
