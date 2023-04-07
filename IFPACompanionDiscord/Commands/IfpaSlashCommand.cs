@@ -28,13 +28,13 @@ namespace IFPACompanionDiscord.Commands
             if (year == null)
                 year = DateTime.Now.Year;
 
-            if(string.IsNullOrWhiteSpace(region))
+            if (string.IsNullOrWhiteSpace(region))
             {
                 var seriesRanking = await IFPAApi.GetSeriesOverallStanding(series, (int)year);
 
                 var table = new ConsoleTable("Location", "Current Leader", "# Players", "Prize $");
 
-                foreach (var ranking in seriesRanking.OverallResults.Take(40))
+                foreach (var ranking in seriesRanking.OverallResults)
                 {
                     table.AddRow(ranking.RegionName,
                                  ranking.CurrentLeader.PlayerName,
@@ -42,9 +42,24 @@ namespace IFPACompanionDiscord.Commands
                                  ranking.PrizeFund.ToString("c"));
                 }
 
-                var responseTable = table.ToMinimalString();
-                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"{series} IFPA standings for {year}\n```{responseTable}```"));
+                var responseTableAsString = table.ToMinimalString();
+                var responseLines = responseTableAsString.Split('\n');
+                var maxLineCount = 25;
+
+                for (int i = 0; i < responseLines.Length; i += maxLineCount)
+                {
+                    var response = String.Join("\n", responseLines.Take(new Range(i, i + maxLineCount)));
+                    if (i == 0)
+                    {
+                        response = $"{series} IFPA standings for {year}\n\n" + response;
+
+                        await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"```{response}```"));
+                    }
+                    else
+                    {
+                        await ctx.FollowUpAsync(new DiscordFollowupMessageBuilder().WithContent($"```{response}```"));
+                    }
+                }
             }
             else
             {
@@ -76,7 +91,7 @@ namespace IFPACompanionDiscord.Commands
             [ChoiceName("women")]
             Women,
             [ChoiceName("youth")]
-            Youth,     
+            Youth,
             [ChoiceName("country")]
             Country
         }
@@ -95,7 +110,7 @@ namespace IFPACompanionDiscord.Commands
             if (rankType == RankType.Main)
             {
                 var rankings = await IFPAApi.GetWpprRanking(1, 40);
-                
+
                 foreach (var ranking in rankings.Rankings)
                 {
                     table.AddRow(index,
@@ -103,7 +118,7 @@ namespace IFPACompanionDiscord.Commands
                                  ranking.WpprPoints.ToString("N2"));
                     index++;
                 }
-            }  
+            }
             else if (rankType == RankType.Women)
             {
                 womensRanking = await IFPAApi.GetRankingForWomen(TournamentType.Open, 1, 40);
@@ -127,7 +142,7 @@ namespace IFPACompanionDiscord.Commands
                     index++;
                 }
             }
-            else if(rankType == RankType.Country && countryName != null)
+            else if (rankType == RankType.Country && countryName != null)
             {
                 var countryRankings = await IFPAApi.GetRankingForCountry(countryName, 1, 40);
 
@@ -205,15 +220,15 @@ namespace IFPACompanionDiscord.Commands
                     embed.AddField(result.TournamentName, $" \n{result.EventDate.ToShortDateString()}                        {result.EventName} \n **{result.Position.OrdinalSuffix()}**                                                     {result.CurrentPoints}");
                 }
             }
-            
-            await ctx.CreateResponseAsync("", embed);      
+
+            await ctx.CreateResponseAsync("", embed);
         }
 
 
         [SlashCommand("tournaments", "Retrieve upcoming tournaments by location")]
-        public async Task TournamentsCommand(InteractionContext ctx, 
-                                            [Option("Radius","Radius in miles from the location")] long radiusInMiles,
-                                            [Option("Location", "Location to search tournaments near")] string location) 
+        public async Task TournamentsCommand(InteractionContext ctx,
+                                            [Option("Radius", "Radius in miles from the location")] long radiusInMiles,
+                                            [Option("Location", "Location to search tournaments near")] string location)
         {
             var tournaments = await IFPALegacyApi.GetCalendarSearch(location, (int)radiusInMiles, DistanceUnit.Miles);
 
