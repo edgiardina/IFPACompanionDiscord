@@ -24,7 +24,8 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t /IFPACompanionDiscord/IFPACompanionDiscord/$CONTAINER_NAME .
+        cd /IFPACompanionDiscord/IFPACompanionDiscord
+        docker build -t $CONTAINER_NAME .
 
     - name: Save Docker image to tar file
       run: |
