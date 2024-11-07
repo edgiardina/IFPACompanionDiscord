@@ -1,0 +1,47 @@
+name: Deploy Docker Image
+
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow on push to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      CONTAINER_NAME:  ifpa-discord-image  # Define the container name once
+      REMOTE_USER: ${{ secrets.REMOTE_USER }}  # SSH username stored in GitHub Secrets
+      REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}  # SSH password stored in GitHub Secrets
+      REMOTE_HOST: ${{ secrets.REMOTE_HOST }}  # Replace with the remote host
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Docker
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build Docker image
+      run: |
+        docker build -t $CONTAINER_NAME .
+
+    - name: Save Docker image to tar file
+      run: |
+        docker save $CONTAINER_NAME -o  ifpa-discord-image.tar
+
+    - name: Transfer tar file to remote host
+      run: |
+        sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no myapp.tar $REMOTE_USER@$REMOTE_HOST:/tmp/
+
+    - name: Load Docker image on remote host and restart container
+      run: |
+        sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << EOF
+          docker load -i /tmp/ifpa-discord-image.tar
+          docker stop $CONTAINER_NAME || true
+          docker rm $CONTAINER_NAME || true
+          docker run -d --name $CONTAINER_NAME --restart always $CONTAINER_NAME
+        EOF
+
+    - name: Clean up tar file
+      run: rm ifpa-discord-image.tar
