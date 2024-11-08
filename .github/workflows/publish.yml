@@ -35,7 +35,8 @@ jobs:
       uses: docker/setup-buildx-action@v2
 
     - name: Build Docker image
-      run: |        
+      run: |
+        cd IFPACompanionDiscord
         docker build -t $CONTAINER_NAME .
 
     - name: Save Docker image to tar file
