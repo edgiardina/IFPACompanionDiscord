@@ -38,9 +38,9 @@ jobs:
     - name: Load Docker image on remote host and restart container
       run: |
         sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << EOF
-          docker load -i /volume1/docker/ifpa-discord-image.tar
           docker stop $CONTAINER_NAME || true
           docker rm $CONTAINER_NAME || true
+          docker load -i /volume1/docker/ifpa-discord-image.tar
           docker run -d --name $CONTAINER_NAME --restart always $CONTAINER_NAME
         EOF
 
