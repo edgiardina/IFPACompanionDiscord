@@ -14,11 +14,21 @@ jobs:
       REMOTE_USER: ${{ secrets.REMOTE_USER }}  # SSH username stored in GitHub Secrets
       REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}  # SSH password stored in GitHub Secrets
       REMOTE_HOST: ${{ secrets.REMOTE_HOST }}  # Replace with the remote host
+      DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+      IFPA_API_KEY: ${{ secrets.IFPA_API_KEY }}
+      OPDB_TOKEN: ${{ secrets.OPDB_TOKEN }}
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
+    - name: Inject secrets into appsettings.json
+      run: |
+        jq '.Discord.Token = env.DISCORD_TOKEN |
+            .PinballApi.IFPAApiKey = env.IFPA_API_KEY |
+            .OPDB.OPDBToken = env.OPDB_TOKEN' appsettings.json > temp.json
+        mv temp.json appsettings.json
+        
     - name: Set up Docker
       uses: docker/setup-buildx-action@v2
 
@@ -38,9 +48,10 @@ jobs:
     - name: Load Docker image on remote host and restart container
       run: |
         sshpass -p "$REMOTE_PASSWORD" ssh -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST << EOF
+          docker image rm ifpa-discord-image:latest -f || true          
+          docker load -i /volume1/docker/ifpa-discord-image.tar
           docker stop $CONTAINER_NAME || true
           docker rm $CONTAINER_NAME || true
-          docker load -i /volume1/docker/ifpa-discord-image.tar
           docker run -d --name $CONTAINER_NAME --restart always $CONTAINER_NAME
         EOF
 
