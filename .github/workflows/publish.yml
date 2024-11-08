@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      CONTAINER_NAME:  ifpa-discord-image  # Define the container name once
+      CONTAINER_NAME: ifpa-discord-image  # Define the container name once
       REMOTE_USER: ${{ secrets.REMOTE_USER }}  # SSH username stored in GitHub Secrets
       REMOTE_PASSWORD: ${{ secrets.REMOTE_PASSWORD }}  # SSH password stored in GitHub Secrets
       REMOTE_HOST: ${{ secrets.REMOTE_HOST }}  # Replace with the remote host
