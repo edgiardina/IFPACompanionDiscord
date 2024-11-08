@@ -29,11 +29,11 @@ jobs:
 
     - name: Save Docker image to tar file
       run: |
-        docker save $CONTAINER_NAME -o  ifpa-discord-image.tar
+        docker save $CONTAINER_NAME -o ifpa-discord-image.tar
 
     - name: Transfer tar file to remote host
       run: |
-        sshpass -p "$REMOTE_PASSWORD" sftp -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST:ifpa-discord-image.tar ifpa-discord-image.tar
+        sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no ifpa-discord-image.tar $REMOTE_USER@$REMOTE_HOST:/docker/
 
     - name: Load Docker image on remote host and restart container
       run: |
