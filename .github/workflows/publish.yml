@@ -33,7 +33,7 @@ jobs:
 
     - name: Transfer tar file to remote host
       run: |
-        sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no ifpa-discord-image.tar $REMOTE_USER@$REMOTE_HOST:/docker/
+        sshpass -p "$REMOTE_PASSWORD" scp -o StrictHostKeyChecking=no ifpa-discord-image.tar $REMOTE_USER@$REMOTE_HOST:/docker/ifpa-discord-image.tar
 
     - name: Load Docker image on remote host and restart container
       run: |
