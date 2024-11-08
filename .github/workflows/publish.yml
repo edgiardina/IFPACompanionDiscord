@@ -29,6 +29,7 @@ jobs:
             .PinballApi.IFPAApiKey = env.IFPA_API_KEY |
             .OPDB.OPDBToken = env.OPDB_TOKEN' appsettings.json > temp.json
         mv temp.json appsettings.json
+        cd ..
         
     - name: Set up Docker
       uses: docker/setup-buildx-action@v2
