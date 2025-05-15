@@ -1,6 +1,7 @@
 ﻿using DSharpPlus;
 using DSharpPlus.SlashCommands;
 using IFPACompanionDiscord.Commands;
+using IFPACompanionDiscord.Geocoding;
 using Microsoft.Extensions.DependencyInjection;
 using PinballApi;
 using PinballApi.Interfaces;
@@ -11,20 +12,14 @@ namespace IFPACompanionDiscord
     {
         private string DiscordToken;
         private string IFPAApiKey;
-        private string OpdbToken;
 
-        private PinballRankingApiV2 IFPAApi { get; set; }
-        private PinballRankingApiV1 IFPALegacyApi { get; set; }
-        private OPDBApi OPDBApi { get; set; }
+        private IPinballRankingApi IFPAApi { get; set; }
 
         public IFPABot(string discordToken, string apiKey, string opdbToken)
         {
             DiscordToken = discordToken;
             IFPAApiKey = apiKey;
-            OpdbToken = opdbToken;
-            IFPAApi = new PinballRankingApiV2(IFPAApiKey);
-            IFPALegacyApi = new PinballRankingApiV1(IFPAApiKey);
-            OPDBApi = new OPDBApi(OpdbToken);
+            IFPAApi = new PinballRankingApi(IFPAApiKey);
         }
 
         /// <summary>
@@ -36,18 +31,20 @@ namespace IFPACompanionDiscord
             var discordClient = new DiscordClient(new DiscordConfiguration
             {
                 Token = this.DiscordToken,
-                TokenType = TokenType.Bot
+                TokenType = TokenType.Bot,
+                MinimumLogLevel = Microsoft.Extensions.Logging.LogLevel.Debug
             });
 
-            var services = new ServiceCollection()
-                                .AddSingleton<PinballRankingApiV2>(IFPAApi)
-                                .AddSingleton<PinballRankingApiV1>(IFPALegacyApi)
-                                .AddSingleton<IOpdbApi>(OPDBApi)
-                                .BuildServiceProvider();
+            var serviceCollection = new ServiceCollection();
+
+            serviceCollection.AddSingleton<IPinballRankingApi>(IFPAApi);
+            serviceCollection.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
+
+            var serviceProvider = serviceCollection.BuildServiceProvider();
 
             var slashCommands = discordClient.UseSlashCommands(new SlashCommandsConfiguration
             {
-                Services = services
+                Services = serviceProvider
             });
             slashCommands.RegisterCommands<IfpaSlashCommand>();
 

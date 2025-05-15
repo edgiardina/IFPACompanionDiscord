@@ -1,5 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-using IFPACompanionDiscord;
+﻿using IFPACompanionDiscord;
 using Microsoft.Extensions.Configuration;
 using System.Globalization;
 

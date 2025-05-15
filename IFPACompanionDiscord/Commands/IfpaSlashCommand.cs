@@ -2,21 +2,24 @@
 using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
 using IFPACompanionDiscord.Extensions;
-using PinballApi;
-using PinballApi.Models.WPPR.v1.Calendar;
-using PinballApi.Models.WPPR.v2.Rankings;
-using PinballApi.Models.WPPR.v2.Players;
 using DSharpPlus;
 using PinballApi.Extensions;
 using IFPACompanionDiscord.Commands.ChoiceProviders;
+using PinballApi.Interfaces;
+using PinballApi.Models.WPPR.Universal.Rankings;
+using PinballApi.Models.WPPR.Universal.Players;
+using PinballApi.Models.WPPR;
+using IFPACompanionDiscord.Geocoding;
 
 namespace IFPACompanionDiscord.Commands
 {
     [SlashCommandGroup("ifpa", "IFPA Pinball Data")]
     public class IfpaSlashCommand : ApplicationCommandModule
     {
-        public PinballRankingApiV2 IFPAApi { get; set; }
-        public PinballRankingApiV1 IFPALegacyApi { get; set; }
+        public IPinballRankingApi IFPAApi { get; set; }
+        public IGeocodingService GeocodingService { get; set; }
+
+        private const int discordCharacterLimit = 1950;
 
         [SlashCommand("series", "Retrieve Championship Series Ranking Data")]
         public async Task SeriesCommand(InteractionContext ctx,
@@ -74,7 +77,7 @@ namespace IFPACompanionDiscord.Commands
                         table.AddRow(ranking.SeriesRank, ranking.PlayerName, ranking.WpprPoints, ranking.EventCount);
                     }
                     var responseTable = table.ToMinimalString();
-                    responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950)).RemoveCharactersAfterLastOccurrence('\n');
+                    responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, discordCharacterLimit)).RemoveCharactersAfterLastOccurrence('\n');
                     await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"{series} IFPA standings for {year} in {region}\n```{responseTable}```"));
                 }
                 else
@@ -101,62 +104,43 @@ namespace IFPACompanionDiscord.Commands
                                             [Option("ranktype", "Ranking Type")] RankType rankType = RankType.Main,
                                             [Option("country", "Country")] string countryName = null)
         {
-            WomensRanking womensRanking = null;
-            YouthRanking youthRanking = null;
 
             var table = new ConsoleTable("Rank", "Player", "Points");
             var index = 1;
 
-            if (rankType == RankType.Main)
-            {
-                var rankings = await IFPAApi.GetWpprRanking(1, 40);
+            RankingType rankingType = RankingType.Wppr;
+            string country = null;
 
-                foreach (var ranking in rankings.Rankings)
-                {
-                    table.AddRow(index,
-                                 ranking.FirstName + " " + ranking.LastName,
-                                 ranking.WpprPoints.ToString("N2"));
-                    index++;
-                }
-            }
-            else if (rankType == RankType.Women)
+            switch (rankType)
             {
-                womensRanking = await IFPAApi.GetRankingForWomen(TournamentType.Open, 1, 40);
-                foreach (var ranking in womensRanking.Rankings)
-                {
-                    table.AddRow(index,
-                                 ranking.FirstName + " " + ranking.LastName,
-                                 ranking.WpprPoints.ToString("N2"));
-                    index++;
-                }
+                case RankType.Main:
+                    rankingType = RankingType.Wppr;
+                    break;
+                case RankType.Women:
+                    rankingType = RankingType.Women;
+                    break;
+                case RankType.Youth:
+                    rankingType = RankingType.Youth;
+                    break;
             }
-            else if (rankType == RankType.Youth)
-            {
-                youthRanking = await IFPAApi.GetRankingForYouth(1, 40);
 
-                foreach (var ranking in youthRanking.Rankings)
-                {
-                    table.AddRow(index,
-                                 ranking.FirstName + " " + ranking.LastName,
-                                 ranking.WpprPoints.ToString("N2"));
-                    index++;
-                }
-            }
-            else if (rankType == RankType.Country && countryName != null)
+            if (string.IsNullOrWhiteSpace(countryName) == false)
             {
-                var countryRankings = await IFPAApi.GetRankingForCountry(countryName, 1, 40);
+                country = countryName;
+            }
 
-                foreach (var ranking in countryRankings.Rankings)
-                {
-                    table.AddRow(index,
-                                 ranking.FirstName + " " + ranking.LastName,
-                                 ranking.WpprPoints.ToString("N2"));
-                    index++;
-                }
+            var rankings = await IFPAApi.RankingSearch(rankingType, count: 40, startPosition: 1, countryCode: country);
+
+            foreach (var ranking in rankings.Rankings)
+            {
+                table.AddRow(index,
+                             ranking.Name,
+                             ranking.WpprPoints.ToString("N2"));
+                index++;
             }
 
             var responseTable = table.ToMinimalString();
-            responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950));
+            responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, discordCharacterLimit)).RemoveCharactersAfterLastOccurrence('\n');
 
             await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Top of the current IFPA {rankType} rankings\n```{responseTable}```"));
         }
@@ -174,10 +158,10 @@ namespace IFPACompanionDiscord.Commands
             }
             else if (String.IsNullOrWhiteSpace(name) == false)
             {
-                var players = await IFPAApi.GetPlayersBySearch(new PlayerSearchFilter { Name = name });
+                var players = await IFPAApi.PlayerSearch(name);
                 if (players.Results.Count > 0)
                 {
-                    playerDetails = await IFPAApi.GetPlayer(players.Results.First().PlayerId);
+                    playerDetails = await IFPAApi.GetPlayer((int)players.Results.First().PlayerId);
                 }
                 else
                 {
@@ -191,7 +175,7 @@ namespace IFPACompanionDiscord.Commands
                 return;
             }
 
-            var playerTourneyResults = await IFPAApi.GetPlayerResults(playerDetails.PlayerId);
+            var playerTourneyResults = await IFPAApi.GetPlayerResults((int)playerDetails.PlayerId);
 
             var embed = new DiscordEmbedBuilder()
                          .WithTitle(playerDetails.FirstName + " " + playerDetails.LastName)
@@ -199,9 +183,9 @@ namespace IFPACompanionDiscord.Commands
                          .WithColor(new DiscordColor("#072C53"))
                          .WithDescription($"IFPA #{playerDetails.PlayerId} [{playerDetails.Initials}]")
                          .AddField("Location", playerDetails.City + " " + playerDetails.CountryName)
-                         .AddField("Ranking", $"{playerDetails.PlayerStats.CurrentWpprRank.OrdinalSuffix()}     {playerDetails.PlayerStats.CurrentWpprValue.ToString("F2")}", true)
-                         .AddField("Rating", $"{playerDetails.PlayerStats.RatingsRank?.OrdinalSuffix()}     {playerDetails.PlayerStats.RatingsValue?.ToString("F2")}", true)
-                         .AddField("Eff percent", $"{playerDetails.PlayerStats.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked"}      {playerDetails.PlayerStats.EfficiencyValue?.ToString("F2")}", true);
+                         .AddField("Ranking", $"{playerDetails.PlayerStats.Open.CurrentRank.OrdinalSuffix()}     {playerDetails.PlayerStats.Open.CurrentPoints.ToString("F2")}", true)
+                         .AddField("Rating", $"{playerDetails.PlayerStats.Open.RatingsRank?.OrdinalSuffix()}     {playerDetails.PlayerStats.Open.RatingsValue?.ToString("F2")}", true)
+                         .AddField("Eff percent", $"{playerDetails.PlayerStats.Open.EfficiencyRank?.OrdinalSuffix() ?? "Not Ranked"}      {playerDetails.PlayerStats.Open.EfficiencyValue?.ToString("F2")}", true);
 
             if (playerDetails.IfpaRegistered)
             {
@@ -230,22 +214,27 @@ namespace IFPACompanionDiscord.Commands
                                             [Option("Radius", "Radius in miles from the location")] long radiusInMiles,
                                             [Option("Location", "Location to search tournaments near")] string location)
         {
-            var tournaments = await IFPALegacyApi.GetCalendarSearch(location, (int)radiusInMiles, DistanceUnit.Miles);
+            // todo: convert string location to lat/long
+            var coordinates = await GeocodingService.GeocodeAsync(location);
 
-            if (tournaments.Calendar != null)
+            var tournaments = await IFPAApi.TournamentSearch(coordinates.Latitude, coordinates.Longitude, (int)radiusInMiles, DistanceType.Miles,
+                                                             startDate: DateTime.Now,
+                                                             endDate: DateTime.Now.AddYears(1));
+
+            if (tournaments.Tournaments != null)
             {
                 var table = new ConsoleTable("Tournament", "Date", "Location", "");
 
-                foreach (var tournament in tournaments.Calendar)
+                foreach (var tournament in tournaments.Tournaments)
                 {
                     table.AddRow(tournament.TournamentName,
-                                 tournament.StartDate.ToShortDateString(),
+                                 tournament.EventStartDate.UtcDateTime.ToShortDateString(),
                                  tournament.City,
                                  tournament.Website);
                 }
 
                 var responseTable = table.ToMinimalString();
-                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, 1950)).RemoveCharactersAfterLastOccurrence('\n');
+                responseTable = responseTable.Substring(0, Math.Min(responseTable.Length, discordCharacterLimit)).RemoveCharactersAfterLastOccurrence('\n');
 
                 await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Upcoming tournaments near {location}\n```{responseTable}```"));
             }
