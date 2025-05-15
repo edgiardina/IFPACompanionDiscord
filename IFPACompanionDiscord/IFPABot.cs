@@ -45,16 +45,6 @@ namespace IFPACompanionDiscord
                                 .AddSingleton<IOpdbApi>(OPDBApi)
                                 .BuildServiceProvider();
 
-            //discordClient.MessageCreated += DiscordClient_MessageCreated;
-            //var commands = discordClient.UseCommandsNext(new CommandsNextConfiguration()
-            //{
-            //    StringPrefixes = new[] { "/ifpa", "/opdb" },
-            //    Services = services
-            //});           
-
-            //commands.RegisterCommands<IfpaCommand>();
-            //commands.RegisterCommands<OpdbCommand>();
-
             var slashCommands = discordClient.UseSlashCommands(new SlashCommandsConfiguration
             {
                 Services = services
