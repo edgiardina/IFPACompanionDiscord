@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  ifpa-companion-discord:
+    image: ghcr.io/edgiardina/ifpa-companion-discord:latest
+    container_name: ifpa-companion-discord
+    restart: unless-stopped
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/config.json:ro
+    environment:
+      - DOCKER_CONFIG=/
+    command: --cleanup --interval 300 ifpa-companion-discord
+    restart: unless-stopped
