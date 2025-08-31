@@ -1,15 +1,15 @@
 ﻿using ConsoleTables;
+using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
-using IFPACompanionDiscord.Extensions;
-using DSharpPlus;
-using PinballApi.Extensions;
 using IFPACompanionDiscord.Commands.ChoiceProviders;
-using PinballApi.Interfaces;
-using PinballApi.Models.WPPR.Universal.Rankings;
-using PinballApi.Models.WPPR.Universal.Players;
-using PinballApi.Models.WPPR;
+using IFPACompanionDiscord.Extensions;
 using IFPACompanionDiscord.Geocoding;
+using PinballApi.Extensions;
+using PinballApi.Interfaces;
+using PinballApi.Models.WPPR;
+using PinballApi.Models.WPPR.Universal.Players;
+using PinballApi.Models.WPPR.Universal.Rankings;
 
 namespace IFPACompanionDiscord.Commands
 {
