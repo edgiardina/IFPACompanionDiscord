@@ -1,22 +1,21 @@
 ﻿using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
-using PinballApi;
 using PinballApi.Interfaces;
 
-namespace IFPACompanionDiscord.Commands.ChoiceProviders
+namespace IFPACompanionDiscord.Commands.ChoiceProviders;
+
+public class SeriesChoiceProvider : ChoiceProvider
 {
-    public class SeriesChoiceProvider : ChoiceProvider
+    public IPinballRankingApi IFPAApi { get; set; } = null!;
+
+    public override async Task<IEnumerable<DiscordApplicationCommandOptionChoice>> Provider()
     {
-        public IPinballRankingApi IFPAApi { get; set; }
+        // Get service from DI if not already injected
+        IFPAApi ??= Services.GetService(typeof(IPinballRankingApi)) as IPinballRankingApi 
+                   ?? throw new InvalidOperationException("IPinballRankingApi service not found");
 
-        public override async Task<IEnumerable<DiscordApplicationCommandOptionChoice>> Provider()
-        {
-            //TODO: there's got to be a better way to do this
-            IFPAApi = (IPinballRankingApi)Services.GetService(typeof(IPinballRankingApi));
-            var series = await IFPAApi.GetSeries();
+        var series = await IFPAApi.GetSeries();
 
-            return series.Select(n => new DiscordApplicationCommandOptionChoice(n.Code, n.Code));
-        }
-
+        return series.Select(n => new DiscordApplicationCommandOptionChoice(n.Code, n.Code));
     }
 }

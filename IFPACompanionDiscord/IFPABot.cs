@@ -1,55 +1,35 @@
 ﻿using DSharpPlus;
-using DSharpPlus.SlashCommands;
-using IFPACompanionDiscord.Commands;
-using IFPACompanionDiscord.Geocoding;
-using Microsoft.Extensions.DependencyInjection;
-using PinballApi;
-using PinballApi.Interfaces;
+using IFPACompanionDiscord.Factories;
+using Microsoft.Extensions.Logging;
 
-namespace IFPACompanionDiscord
+namespace IFPACompanionDiscord;
+
+public class IFPABot(IDiscordClientFactory discordClientFactory, ILogger<IFPABot> logger)
 {
-    public class IFPABot
+    private DiscordClient? _discordClient;
+
+    /// <summary>
+    /// Gets the Discord client instance if connected, null otherwise
+    /// </summary>
+    public DiscordClient? Client => _discordClient;
+
+    /// <summary>
+    /// Gets whether the bot is connected to Discord
+    /// </summary>
+    public bool IsConnected => _discordClient?.CurrentUser != null;
+
+    /// <summary>
+    /// Start the IFPA Discord Companion Bot and listen infinitely for `/ifpa` messages
+    /// </summary>
+    /// <returns></returns>
+    public async Task Run()
     {
-        private string DiscordToken;
-        private string IFPAApiKey;
+        _discordClient = await discordClientFactory.CreateAndConfigureClientAsync();
 
-        private IPinballRankingApi IFPAApi { get; set; }
-
-        public IFPABot(string discordToken, string apiKey, string opdbToken)
-        {
-            DiscordToken = discordToken;
-            IFPAApiKey = apiKey;
-            IFPAApi = new PinballRankingApi(IFPAApiKey);
-        }
-
-        /// <summary>
-        /// Start the IFPA Discord Companion Bot and listen infinitely for `/ifpa` messages
-        /// </summary>
-        /// <returns></returns>
-        public async Task Run()
-        {
-            var discordClient = new DiscordClient(new DiscordConfiguration
-            {
-                Token = this.DiscordToken,
-                TokenType = TokenType.Bot,
-                MinimumLogLevel = Microsoft.Extensions.Logging.LogLevel.Debug
-            });
-
-            var serviceCollection = new ServiceCollection();
-
-            serviceCollection.AddSingleton<IPinballRankingApi>(IFPAApi);
-            serviceCollection.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
-
-            var serviceProvider = serviceCollection.BuildServiceProvider();
-
-            var slashCommands = discordClient.UseSlashCommands(new SlashCommandsConfiguration
-            {
-                Services = serviceProvider
-            });
-            slashCommands.RegisterCommands<IfpaSlashCommand>();
-
-            await discordClient.ConnectAsync();
-            await Task.Delay(-1);
-        }
+        logger.LogInformation("Connecting to Discord...");
+        await _discordClient.ConnectAsync();
+        
+        logger.LogInformation("Bot is running. Press Ctrl+C to stop.");
+        await Task.Delay(-1);
     }
 }
