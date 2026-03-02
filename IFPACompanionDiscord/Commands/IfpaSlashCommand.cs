@@ -23,7 +23,7 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
 {
     public IPinballRankingApi IFPAApi { get; set; } = null!;
     public IGeocodingService GeocodingService { get; set; } = null!;
-    
+
     private readonly IAsyncCacheProvider _cache = new MemoryCacheProvider(memoryCache);
     private readonly IAsyncPolicy _retryPolicy = Policy
         .Handle<HttpRequestException>()
@@ -33,7 +33,7 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
             sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
             onRetry: (outcome, timespan, retryCount, context) =>
             {
-                logger.LogWarning("Retry {RetryCount} for {Operation} in {Delay}ms", 
+                logger.LogWarning("Retry {RetryCount} for {Operation} in {Delay}ms",
                     retryCount, context.OperationKey, timespan.TotalMilliseconds);
             });
 
@@ -53,14 +53,14 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
             var cacheKey = $"series_{series}_{year}";
             var cachePolicy = Policy.CacheAsync(_cache, TimeSpan.FromMinutes(30));
             var wrappedPolicy = Policy.WrapAsync(_retryPolicy, cachePolicy);
-            
+
             var seriesRanking = await wrappedPolicy.ExecuteAsync(
                 async (context) => await IFPAApi.GetSeriesOverallStanding(series, (int)year),
                 new Context(cacheKey));
 
             if (seriesRanking == null)
             {
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, 
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
                     new DiscordInteractionResponseBuilder().WithContent($"No data found for series `{series}` in {year}"));
                 return;
             }
@@ -74,21 +74,38 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
                              ranking.PrizeFund.ToString("c"));
             }
 
-            await SendTableResponseAsync(ctx, table, $"{series} IFPA standings for {year}");
+            var responseTableAsString = table.ToMinimalString();
+            var responseLines = responseTableAsString.Split('\n');
+            var maxLineCount = 25;
+
+            for (int i = 0; i < responseLines.Length; i += maxLineCount)
+            {
+                var response = String.Join("\n", responseLines.Take(new Range(i, i + maxLineCount)));
+                if (i == 0)
+                {
+                    response = $"{series} IFPA standings for {year}\n\n" + response;
+                    await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
+                        new DiscordInteractionResponseBuilder().WithContent($"```{response}```"));
+                }
+                else
+                {
+                    await ctx.FollowUpAsync(new DiscordFollowupMessageBuilder().WithContent($"```{response}```"));
+                }
+            }
         }
         else
         {
             var cacheKey = $"series_{series}_{region}_{year}";
             var cachePolicy = Policy.CacheAsync(_cache, TimeSpan.FromMinutes(30));
             var wrappedPolicy = Policy.WrapAsync(_retryPolicy, cachePolicy);
-            
+
             var championshipSeries = await wrappedPolicy.ExecuteAsync(
                 async (context) => await IFPAApi.GetSeriesStandingsForRegion(series, region, (int)year),
                 new Context(cacheKey));
 
             var table = new ConsoleTable("Rank", "Player", "Points", "# Events");
             table.Options.NumberAlignment = Alignment.Right;
-            
+
             if (championshipSeries?.Standings != null)
             {
                 foreach (var ranking in championshipSeries.Standings.Take(40))
@@ -99,7 +116,7 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
             }
             else
             {
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, 
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
                     new DiscordInteractionResponseBuilder().WithContent($"Region `{region}` returned no results"));
             }
         }
@@ -113,7 +130,7 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
         var cacheKey = $"rankings_{rankType}_{countryName ?? "global"}";
         var cachePolicy = Policy.CacheAsync(_cache, TimeSpan.FromMinutes(15));
         var wrappedPolicy = Policy.WrapAsync(_retryPolicy, cachePolicy);
-        
+
         var rankings = await wrappedPolicy.ExecuteAsync(async (context) =>
         {
             var apiRankingType = rankType switch
@@ -158,7 +175,7 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
             var cacheKey = $"player_{ifpaNumber}";
             var cachePolicy = Policy.CacheAsync(_cache, TimeSpan.FromMinutes(30));
             var wrappedPolicy = Policy.WrapAsync(_retryPolicy, cachePolicy);
-            
+
             playerDetails = await wrappedPolicy.ExecuteAsync(
                 async (context) => await IFPAApi.GetPlayer((int)ifpaNumber),
                 new Context(cacheKey));
@@ -171,21 +188,21 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
                 var cacheKey = $"player_{players.Results.First().PlayerId}";
                 var cachePolicy = Policy.CacheAsync(_cache, TimeSpan.FromMinutes(30));
                 var wrappedPolicy = Policy.WrapAsync(_retryPolicy, cachePolicy);
-                
+
                 playerDetails = await wrappedPolicy.ExecuteAsync(
                     async (context) => await IFPAApi.GetPlayer((int)players.Results.First().PlayerId),
                     new Context(cacheKey));
             }
             else
             {
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, 
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
                     new DiscordInteractionResponseBuilder().WithContent("Search criteria did not find any players").AsEphemeral());
                 return;
             }
         }
         else
         {
-            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, 
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
                 new DiscordInteractionResponseBuilder().WithContent("Player Name or IFPA Number is required.").AsEphemeral());
             return;
         }
@@ -200,7 +217,7 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
         var resultsCacheKey = $"player_results_{playerDetails.PlayerId}";
         var resultsPolicy = Policy.CacheAsync(_cache, TimeSpan.FromMinutes(15));
         var resultsWrappedPolicy = Policy.WrapAsync(_retryPolicy, resultsPolicy);
-        
+
         var playerTourneyResults = await resultsWrappedPolicy.ExecuteAsync(
             async (context) => await IFPAApi.GetPlayerResults((int)playerDetails.PlayerId),
             new Context(resultsCacheKey));
@@ -246,7 +263,7 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
         var cacheKey = $"tournaments_{coordinates.Latitude:F2}_{coordinates.Longitude:F2}_${radiusInMiles}";
         var cachePolicy = Policy.CacheAsync(_cache, TimeSpan.FromMinutes(60));
         var wrappedPolicy = Policy.WrapAsync(_retryPolicy, cachePolicy);
-        
+
         var tournaments = await wrappedPolicy.ExecuteAsync(async (context) =>
             await IFPAApi.TournamentSearch(coordinates.Latitude, coordinates.Longitude, (int)radiusInMiles, DistanceType.Miles,
                                          startDate: DateTime.Now,
@@ -268,7 +285,7 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
         }
         else
         {
-            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, 
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
                 new DiscordInteractionResponseBuilder().WithContent($"No upcoming tournaments near {location}"));
         }
     }
@@ -277,8 +294,8 @@ public class IfpaSlashCommand(IMemoryCache memoryCache, ILogger<IfpaSlashCommand
     {
         var responseTable = table.ToMinimalString();
         responseTable = TruncateToDiscordLimit(responseTable);
-        
-        await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, 
+
+        await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource,
             new DiscordInteractionResponseBuilder().WithContent($"{title}\n```{responseTable}```"));
     }
 
